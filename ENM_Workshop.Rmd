@@ -511,17 +511,25 @@ places are both warm and dry enough). **Take-home: broader niche → broader
 predicted range.**
 :::
 
-## (Optional) Turn a niche into virtual sightings {#a-sample}
+## Turn a niche into virtual sightings — with & without bias {#a-sample}
 
 To connect theory to real data, `nicheR` can *sample* virtual occurrence points
-from a prediction with **`sample_data()`** — handy for teaching, or for testing
-methods (like Module B's bias correction!).
+from a prediction with **`sample_data()`**. This is perfect for teaching and for
+testing methods — and it is exactly how you can **create a biased dataset on
+purpose** to hand to Module B's bias correction.
 
 - **`n_occ`** — how many points to draw.
 - **`sampling`** — `"centroid"` (near the niche core), `"edge"`, or `"random"`.
 - **`method`** — weight points by `"suitability"` or `"mahalanobis"`.
+- **`bias`** — an optional **bias layer** (a raster of relative sampling effort).
+  With no bias, points follow *true* suitability; with a bias layer, they are
+  pulled toward the over-sampled/accessible places — just like real field data.
 
-```{r a-sample-occ}
+<p align="center"><img src="images/concepts/concept_sampling_bias_layer.png" width="94%"></p>
+
+**First, draw an *unbiased* sample** — points that honestly track suitability:
+
+```{r a-sample-unbiased}
 gen_occ <- sample_data(
   n_occ            = 100,
   prediction       = as.data.frame(gen_pred, xy = TRUE),
@@ -532,6 +540,55 @@ gen_occ <- sample_data(
 )
 head(gen_occ)   # x, y coordinates of the 100 virtual sightings
 ```
+
+**Now load the bias layer that ships with `nicheR`** and draw a *biased* sample.
+(We look the file up by name so it keeps working regardless of the exact filename.)
+
+```{r a-sample-load-bias}
+# Find and open the example bias raster from nicheR's extdata folder:
+bias_file  <- list.files(system.file("extdata", package = "nicheR"),
+                         pattern = "bias", full.names = TRUE)[1]
+bias_layer <- terra::rast(bias_file)
+
+bias_layer          # a SpatRaster of relative sampling effort (higher = sampled more)
+terra::plot(bias_layer, main = "nicheR example bias layer (sampling effort)")
+```
+
+::: {.warning}
+**One name to confirm.** I inferred that `sample_data()` takes the bias raster
+through an argument called **`bias`**. If your version uses a different name
+(e.g. `bias_layer`), change that single word in the next chunk.
+:::
+
+```{r a-sample-biased}
+# Same niche, but now sampling effort is skewed by the bias layer:
+gen_occ_biased <- sample_data(
+  n_occ            = 100,
+  prediction       = as.data.frame(gen_pred, xy = TRUE),
+  prediction_layer = "suitability_trunc",
+  sampling         = "random",
+  method           = "suitability",
+  bias             = bias_layer,   # <- the bias layer does the skewing
+  seed             = 1
+)
+head(gen_occ_biased)
+```
+
+**Compare the two samples on the map:**
+
+```{r a-sample-compare, fig.width=7, fig.height=6}
+terra::plot(gen_pred[["suitability_trunc"]],
+            main = "Unbiased (blue) vs. biased (red) virtual sightings")
+points(gen_occ$x,        gen_occ$y,        pch = 20, col = "#5E78C4")  # unbiased
+points(gen_occ_biased$x, gen_occ_biased$y, pch = 20, col = "#c0392b")  # biased
+```
+
+::: {.seealso}
+**What you should see.** The blue (unbiased) points spread across the suitable
+core, while the red (biased) points bunch up wherever the bias layer is high —
+the same clumping problem Module B exists to fix. You have just *manufactured*
+biased data to practise on.
+:::
 
 ## Your turn — Module A challenges {#a-challenge}
 
