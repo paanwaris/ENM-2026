@@ -3204,20 +3204,18 @@ packages: <strong><code>terra</code></strong> (spatial/raster tools),
 <strong><code>nicheR</code></strong> (Module A), and
 <strong><code>bean</code></strong> (Module B).</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Run this block ONCE. It is set to eval=FALSE so it never runs automatically.</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># 1) terra comes from CRAN, the official R package repository:</span></span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;terra&quot;</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co"># 2) nicheR and bean live on GitHub, so we install them with the &#39;remotes&#39; helper:</span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;remotes&quot;</span>)</span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;EscobarLab/nicheR&quot;</span>)   <span class="co"># Module A  (Day 1)</span></span>
-<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;EscobarLab/bean&quot;</span>)      <span class="co"># Module B  (Day 2)</span></span></code></pre></div>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co"># All three packages are on CRAN, so a normal install.packages() is all you need:</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;terra&quot;</span>)    <span class="co"># raster / spatial tools</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;nicheR&quot;</span>)   <span class="co"># Module A  (Day 1)</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;bean&quot;</span>)     <span class="co"># Module B  (Day 2)</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co"># (Tip: you can install all three at once —</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co">#  install.packages(c(&quot;terra&quot;, &quot;nicheR&quot;, &quot;bean&quot;)) )</span></span></code></pre></div>
 <div class="warning">
-<p><strong>First-time install tips.</strong> GitHub installs can ask to
-update other packages — choosing “None” is usually fine for a workshop.
-On Windows you may be prompted to install <strong>Rtools</strong>; on
-macOS you may need the <strong>Xcode command-line tools</strong>. If an
-install fails, see <a href="#troubleshooting">Troubleshooting</a>.</p>
+<p><strong>First-time install tips.</strong> Installing may pull in a
+few dependency packages — just let it finish. If R asks whether to
+update other packages, choosing “None” is usually fine for a workshop.
+If an install fails, see <a href="#troubleshooting">Troubleshooting</a>.</p>
 </div>
 <p>Once installed, you only ever <em>load</em> them (no re-installing)
 at the top of a session:</p>
@@ -4066,11 +4064,11 @@ FAQ</h1>
 <code>prepare_bean</code>).</strong> The package isn’t loaded. Run
 <code>library(nicheR)</code> / <code>library(bean)</code>. If that also
 errors, the package isn’t installed yet — see <a href="#install">Install</a>.</p>
-<p><strong><code>install_github()</code> fails.</strong> Make sure
-<code>remotes</code> is installed
-(<code>install.packages(&quot;remotes&quot;)</code>). On Windows install
-<strong>Rtools</strong>; on macOS install the Xcode command-line tools
-with <code>xcode-select --install</code> in a terminal.</p>
+<p><strong><code>install.packages(&quot;nicheR&quot;)</code> fails.</strong> Check
+your internet connection and that you spelled the name correctly
+(case-sensitive). If R offers to install from source and that fails,
+choose the binary version when prompted, or update R to the current
+release and try again.</p>
 <p><strong><code>system.file(...)</code> returns an empty string
 <code>&quot;&quot;</code>.</strong> The example data file wasn’t found, usually
 because the package didn’t install completely. Reinstall the
