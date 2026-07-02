@@ -163,21 +163,20 @@ We need R and RStudio (install those from their websites), plus three packages:
 
 ```{r install-packages, eval=FALSE}
 # Run this block ONCE. It is set to eval=FALSE so it never runs automatically.
+# All three packages are on CRAN, so a normal install.packages() is all you need:
+install.packages("terra")    # raster / spatial tools
+install.packages("nicheR")   # Module A  (Day 1)
+install.packages("bean")     # Module B  (Day 2)
 
-# 1) terra comes from CRAN, the official R package repository:
-install.packages("terra")
-
-# 2) nicheR and bean live on GitHub, so we install them with the 'remotes' helper:
-install.packages("remotes")
-remotes::install_github("EscobarLab/nicheR")   # Module A  (Day 1)
-remotes::install_github("EscobarLab/bean")      # Module B  (Day 2)
+# (Tip: you can install all three at once —
+#  install.packages(c("terra", "nicheR", "bean")) )
 ```
 
 ::: {.warning}
-**First-time install tips.** GitHub installs can ask to update other packages —
-choosing "None" is usually fine for a workshop. On Windows you may be prompted
-to install **Rtools**; on macOS you may need the **Xcode command-line tools**.
-If an install fails, see [Troubleshooting](#troubleshooting).
+**First-time install tips.** Installing may pull in a few dependency packages —
+just let it finish. If R asks whether to update other packages, choosing "None"
+is usually fine for a workshop. If an install fails, see
+[Troubleshooting](#troubleshooting).
 :::
 
 Once installed, you only ever *load* them (no re-installing) at the top of a session:
@@ -854,9 +853,10 @@ whichever order you choose.
 isn't loaded. Run `library(nicheR)` / `library(bean)`. If that also errors, the
 package isn't installed yet — see [Install](#install).
 
-**`install_github()` fails.** Make sure `remotes` is installed
-(`install.packages("remotes")`). On Windows install **Rtools**; on macOS install
-the Xcode command-line tools with `xcode-select --install` in a terminal.
+**`install.packages("nicheR")` fails.** Check your internet connection and that
+you spelled the name correctly (case-sensitive). If R offers to install from
+source and that fails, choose the binary version when prompted, or update R to
+the current release and try again.
 
 **`system.file(...)` returns an empty string `""`.** The example data file
 wasn't found, usually because the package didn't install completely. Reinstall
