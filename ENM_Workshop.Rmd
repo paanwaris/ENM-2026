@@ -376,6 +376,74 @@ just like this schematic (its two mini-maps preview the punch line):
 
 <p align="center"><img src="images/concepts/concept_generalist_specialist.png" width="94%"></p>
 
+## Reshape a niche without rebuilding it {#a-reshape}
+
+Every niche we've built so far is **axis-aligned**: its oval points straight up
+and along the temperature/precipitation axes, because temperature and
+precipitation were treated as independent. But real species often live where two
+variables **move together** — e.g. warmer places are also wetter. That
+relationship *tilts* the ellipse. In `nicheR` the tilt is controlled by the
+**off-diagonal of the covariance matrix**, and you can change it *in place* with
+**`update_ellipsoid_covariance()`** — no need to call `build_ellipsoid()` again.
+
+<p align="center"><img src="images/concepts/concept_covariance_tilt.png" width="94%"></p>
+
+- **Zero** covariance → upright, axis-aligned oval (no correlation).
+- **Positive** covariance → tilts "uphill": high temperature co-occurs with high precipitation.
+- **Negative** covariance → tilts "downhill": high temperature co-occurs with low precipitation.
+
+The `covariance` argument is either **one number** (applied to every off-diagonal
+pair) or a **named** value like `c("bio_1-bio_12" = -100)` for a specific pair.
+There is a catch: the covariance can't be *too* large, or the ellipse stops being
+a valid shape (it must stay **positive-definite**). Check the safe range first
+with **`$cov_limits`**.
+
+```{r a-reshape}
+# The safe covariance range for this niche's variable pair:
+generalist$cov_limits
+
+# A magnitude that is always valid is anything below sqrt(var1 * var2).
+# We take half of that, which corresponds to a correlation of about 0.5:
+vars     <- diag(generalist$cov_matrix)          # the two marginal variances
+safe_cov <- 0.5 * sqrt(vars[[1]] * vars[[2]])
+
+# Tilt the SAME niche two ways — without rebuilding it from ranges:
+gen_pos <- update_ellipsoid_covariance(generalist, covariance =  safe_cov)  # uphill
+gen_neg <- update_ellipsoid_covariance(generalist, covariance = -safe_cov)  # downhill
+
+# Adding correlation makes the oval narrower, so the volume shrinks:
+generalist$volume
+gen_pos$volume
+```
+
+```{r a-reshape-plot, fig.width=7, fig.height=5.5}
+# Compare the original (grey) with the two tilted versions
+plot_ellipsoid(
+  generalist,
+  background = back_data[, c("bio_1", "bio_12")],
+  col_ell = "#7f8c8d", col_bg = "grey88", lwd = 2.5, pch = 20, cex_bg = 0.35,
+  xlab = "bio_1 (temperature)", ylab = "bio_12 (precipitation)",
+  main = "Same niche, reshaped: zero (grey) / positive (blue) / negative (pink)"
+)
+add_ellipsoid(gen_pos, col_ell = "#5E78C4", lwd = 2.5)   # positive covariance
+add_ellipsoid(gen_neg, col_ell = "#D9559E", lwd = 2.5)   # negative covariance
+```
+
+::: {.seealso}
+**What you should see.** Three ovals sharing the same centre: the grey one
+upright, the blue one tilted uphill, the pink one tilted downhill — exactly like
+the schematic above. Because everything is recomputed internally, `gen_pos` and
+`gen_neg` are ready to hand straight to `predict()`.
+:::
+
+::: {.tip}
+**Why this is handy.** It lets you explore *how the correlation between climate
+variables changes a species' predicted range* by editing one number, instead of
+guessing new min/max ranges and rebuilding. The returned object also carries
+`$cov_limits_remaining`, telling you how much room is left before the niche would
+become invalid.
+:::
+
 ## Predict suitability everywhere {#a-predict}
 
 Now we take each ellipsoid and ask, *for every pixel of the map, how well do its
@@ -887,6 +955,7 @@ it, exclude any chunk that creates or uses a `SpatRaster` (`cache = FALSE`).
 |:--|:--|
 | `terra::rast()` | open an environmental raster stack (G-space) |
 | `build_ellipsoid()` | build a niche from min/max tolerance ranges |
+| `update_ellipsoid_covariance()` | tilt / correlate an existing niche (rotation) without rebuilding |
 | `plot_ellipsoid()` / `add_ellipsoid()` | draw / overlay niches in E-space |
 | `predict()` | score suitability for every pixel |
 | `sample_data()` | draw virtual occurrence points from a prediction |
