@@ -894,204 +894,44 @@ terra::plot(suitability[["suitability_trunc"]],
 *cleaned* niche — brighter where the deer's preferred climate occurs.
 :::
 
-## Step 6 — Did thinning actually help? {#b-evaluate}
+## Step 6 — Compare the maps: with vs. without thinning {#b-evaluate}
 
-The final question: **is the bias-corrected model more accurate?** The standard
-check is to compare models built on the **original** vs. **thinned** data using
-cross-validated **AUC** (a 0.5–1.0 score; higher = better at telling suitable
-from unsuitable places).
+The final question: **does removing the bias change the predicted map?** We fit a
+niche to the **original (biased)** occurrences, fit another to the **thinned**
+occurrences, project both across Thailand, and put the two suitability maps side
+by side in G-space.
 
-```{r b-evaluate, eval=FALSE}
-# Conceptual sketch — build & cross-validate a model on the ORIGINAL data and on
-# the THINNED data, then compare their AUC. (See the bean niche-modeling
-# vignette for the full evaluation helper.)
-#
-#   auc_original <- evaluate_model(prepared)              # biased
-#   auc_thinned  <- evaluate_model(thinned$thinned_data)  # bias-corrected
-#   boxplot(list(Original = auc_original, Thinned = auc_thinned),
-#           ylab = "cross-validated AUC")
+```{r b-compare, fig.width=9, fig.height=5}
+library(nicheR)   # provides the predict() method for bean ellipsoids
+
+# 1) Fit a niche to the ORIGINAL (biased, un-thinned) occurrences:
+fit_biased <- fit_ellipsoid(
+  data     = prepared,
+  env_vars = c("bio_1", "bio_12"),
+  method   = "covmat",
+  level    = 0.95
+)
+# (`fit`, the THINNED niche, was already created in Step 4.)
+
+# 2) Project BOTH niches onto Thailand (same scaling as Step 5):
+env_s        <- scale(env[[c("bio_1", "bio_12")]])
+suit_biased  <- predict(fit_biased, newdata = env_s, suitability_truncated = TRUE)
+suit_thinned <- predict(fit,        newdata = env_s, suitability_truncated = TRUE)
+
+# 3) Compare the two suitability maps side by side:
+par(mfrow = c(1, 2))
+terra::plot(suit_biased[["suitability_trunc"]],
+            main = "Without thinning\n(biased data)")
+terra::plot(suit_thinned[["suitability_trunc"]],
+            main = "With thinning\n(bias-corrected)")
+par(mfrow = c(1, 1))
 ```
 
 ::: {.seealso}
-**What you should see.** The model built on **thinned** data scores clearly
-**higher** AUC than the one built on the **original**, biased data. Removing
-environmental bias produced a more accurate, more honest prediction.
+**What you should see.** Two maps of Thailand. The **without-thinning** map is
+pulled toward the climates that were over-sampled, so it over- or under-predicts
+suitability in places. The **with-thinning** map is more even and honest, because
+the niche was estimated from points spread across the whole environmental range.
+Same species, same landscape — the only difference is whether we corrected the
+sampling bias.
 :::
-
-## Your turn — Module B challenges {#b-challenge}
-
-::: {.challenge}
-**Challenge B1.** Re-run `thin_env_nd()` with a *different* `seed` (e.g. `999`).
-Do you keep the same number of points? Why might the exact points differ but the
-count stay similar?
-
-**Challenge B2.** Swap `thin_env_nd()` for `thin_env_center()` and compare the
-fitted ellipse. Is the centroid in a noticeably different place?
-
-**Challenge B3.** Halve and double `grid_resolution`. What happens to the number
-of retained points, and why? (Bigger cells = fewer, coarser points.)
-
-<details><summary>Show a hint</summary>
-
-Everything downstream (`fit_ellipsoid()`, `predict()`) can be reused unchanged —
-just feed it the new thinned object.
-</details>
-:::
-
-## Module B recap {#b-recap}
-
-::: {.keypoints}
-**Key points**
-
-- Real occurrence data are **biased**; the bias appears as **clusters in E-space**
-  (`prepare_bean()`, then plot).
-- **`find_env_resolution()`** picks an **objective** grid cell size.
-- **`thin_env_nd()`** (stochastic) or **`thin_env_center()`** (deterministic)
-  spread the data evenly across the niche; **`plot_bean()`** shows before/after.
-- **`fit_ellipsoid()`** defines the cleaned niche, and `nicheR::predict()` maps it.
-- **Thinning improved accuracy** — a cleaner niche gives a better map.
-:::
-
----
-
-# Which module should I teach first? {#rotation}
-
-The two modules are deliberately **independent**, so you can rotate them to fit
-your audience:
-
-| If your group is… | Teach first | Because… |
-|:--|:--|:--|
-| brand-new to niche theory | **Module A (`nicheR`)** | it builds the core mental model (niche = ellipsoid, breadth → range) from scratch. |
-| already comfortable with SDMs but wrestling with messy field data | **Module B (`bean`)** | it jumps straight to the practical problem they feel most. |
-| short on time (half-day) | **either one alone** | each module is a complete, self-contained story with its own setup, data, and recap. |
-
-The only shared prerequisite is the **two-spaces** idea from
-[Part 0](#two-spaces); both modules reference it, so glance at that one diagram
-whichever order you choose.
-
----
-
-# Troubleshooting & FAQ {#troubleshooting}
-
-::: {.callout}
-**"could not find function `build_ellipsoid`" (or `prepare_bean`).** The package
-isn't loaded. Run `library(nicheR)` / `library(bean)`. If that also errors, the
-package isn't installed yet — see [Install](#install).
-
-**`install.packages("nicheR")` fails.** Check your internet connection and that
-you spelled the name correctly (case-sensitive). If R offers to install from
-source and that fails, choose the binary version when prompted, or update R to
-the current release and try again.
-
-**`system.file(...)` returns an empty string `""`.** The example data file
-wasn't found, usually because the package didn't install completely. Reinstall
-the package.
-
-**My suitability map is all one colour / looks wrong (Module B).** Almost always
-the scaling mismatch flagged in [Step 5](#b-project): your niche was fitted on
-*scaled* data but the raster is in *raw* units. Re-run with `transform = "none"`,
-or scale the raster the same way before predicting.
-
-**Knitting this file stops on an error.** Set `run_code: false` in the YAML
-header to build a code-only preview, then fix the offending chunk before turning
-it back on.
-
-**`NULL value passed as symbol address` / `x@pntr` errors.** This happens when a
-`terra` raster is cached and reloaded between chunks — its internal pointer dies.
-Caching is turned **off** in this file for exactly that reason; if you re-enable
-it, exclude any chunk that creates or uses a `SpatRaster` (`cache = FALSE`).
-:::
-
----
-
-# Function cheat-sheet {#cheatsheet}
-
-**Module A — `nicheR`**
-
-| Function | What it does |
-|:--|:--|
-| `terra::rast()` | open an environmental raster stack (G-space) |
-| `build_ellipsoid()` | build a niche from min/max tolerance ranges |
-| `update_ellipsoid_covariance()` | tilt / correlate an existing niche (rotation) without rebuilding |
-| `plot_ellipsoid()` / `add_ellipsoid()` | draw / overlay niches in E-space |
-| `predict()` | score suitability for every pixel |
-| `sample_data()` | draw virtual occurrence points from a prediction |
-
-**Module B — `bean`**
-
-| Function | What it does |
-|:--|:--|
-| `prepare_bean()` | clean data, attach environment, (optionally) scale |
-| `find_env_resolution()` | pick an objective environmental grid cell size |
-| `thin_env_nd()` | thin data — keep one *real* point per cell (stochastic) |
-| `thin_env_center()` | thin data — one *cell-centre* point per cell (deterministic) |
-| `plot_bean()` | show original vs. thinned points |
-| `fit_ellipsoid()` | fit a niche ellipse to the cleaned data |
-| `nicheR::predict()` | map the fitted `bean` niche |
-
----
-
-# Glossary {#glossary}
-
-| Term | Plain-English definition |
-|:--|:--|
-| **Niche** | The set of environmental conditions where a species can survive; here, an oval (ellipsoid) in E-space. |
-| **E-space** | Environmental space — axes are climate variables; each point is a place plotted by its climate. |
-| **G-space** | Geographic space — the ordinary map (longitude/latitude). |
-| **Ellipsoid** | The oval used to describe a niche; defined by a centre (centroid) and a spread (covariance). |
-| **Centroid** | The middle of the niche — the species' environmental "optimum." |
-| **Suitability** | A 0–1 score for how well a place matches the niche (1 = ideal). |
-| **Mahalanobis distance** | How far a place is from the niche centre, accounting for the niche's shape; large distance → low suitability. |
-| **Occurrence** | A record that the species was seen at a location (a lon/lat point). |
-| **Background** | The cloud of *available* environmental conditions across the study area. |
-| **Sampling bias** | Records clustered by where people looked, not where the species truly is. |
-| **Thinning** | Reducing clustered records to an even spread (here, in E-space) to remove bias. |
-| **Generalist / Specialist** | A species with a broad niche (large volume) / narrow niche (small volume). |
-| **AUC** | A 0.5–1.0 score of how well a model separates suitable from unsuitable places; higher is better. |
-| **Raster** | A grid-of-pixels map; a *stack* is several aligned layers. |
-
----
-
-# Wrap-up & where to go next {#wrapup}
-
-Across two independent modules you built the full beginner pipeline:
-
-1. **Module A (`nicheR`):** niche = **ellipsoid**; **breadth drives range**
-   (generalist ≫ specialist).
-2. **Module B (`bean`):** find and remove **sampling bias** in **environmental
-   space** to get an honest, more accurate model.
-
-**Keep learning — the package vignettes:**
-
-```{r next-steps, eval=FALSE}
-# nicheR
-vignette("creating_ellipsoid_based_niches")   # building niches
-vignette("predict")                           # suitability & Mahalanobis
-vignette("bias")                              # simulating sampling bias
-
-# bean
-vignette("data-preparation")                  # cleaning & scaling
-vignette("environmental-thinning")            # resolution & thinning
-vignette("niche-modeling")                    # fitting & mapping
-```
-
-**Cite the tools you used**
-
-> Castaneda-Guzman, M., Hughes, C., Paansri, P., & Cobos, M. E. (2026). *nicheR:
-> Ellipsoid-Based Virtual Niches and Visualization.* R package v0.1.0.
->
-> Paansri, P., & Escobar, L. E. *bean: Environmental Thinning of Biased
-> Occurrence Data.* R package.
-
-# Session information {#session}
-
-Recording `sessionInfo()` at the end of an analysis makes your work reproducible —
-anyone can see the exact package versions you used.
-
-```{r session-info, eval=TRUE}
-sessionInfo()
-```
-
-<br>
-
-*End of guide — happy modeling! 🌳*
