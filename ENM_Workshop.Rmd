@@ -511,83 +511,83 @@ places are both warm and dry enough). **Take-home: broader niche → broader
 predicted range.**
 :::
 
-## Turn a niche into virtual sightings — with & without bias {#a-sample}
+## (Optional) Turn a niche into virtual sightings {#a-sample}
 
 To connect theory to real data, `nicheR` can *sample* virtual occurrence points
-from a prediction with **`sample_data()`**. This is perfect for teaching and for
-testing methods — and it is exactly how you can **create a biased dataset on
-purpose** to hand to Module B's bias correction.
+from a prediction with **`sample_data()`** — perfect for teaching or for testing
+methods (like Module B's bias correction).
 
 - **`n_occ`** — how many points to draw.
-- **`sampling`** — `"centroid"` (near the niche core), `"edge"`, or `"random"`.
 - **`method`** — weight points by `"suitability"` or `"mahalanobis"`.
-- **`bias`** — an optional **bias layer** (a raster of relative sampling effort).
-  With no bias, points follow *true* suitability; with a bias layer, they are
-  pulled toward the over-sampled/accessible places — just like real field data.
+- **`sampling`** — *where* on the niche the points land:
+  `"centroid"` (clustered near the niche core / optimum), `"edge"` (near the
+  tolerance boundary), or `"random"` (spread across the whole suitable area).
 
-<p align="center"><img src="images/concepts/concept_sampling_bias_layer.png" width="94%"></p>
+We draw all three from the generalist's prediction so the difference is visible:
 
-**First, draw an *unbiased* sample** — points that honestly track suitability:
+```{r a-sample-occ}
+pred_df <- as.data.frame(gen_pred, xy = TRUE)   # the prediction as a table
 
-```{r a-sample-unbiased}
-gen_occ <- sample_data(
-  n_occ            = 100,
-  prediction       = as.data.frame(gen_pred, xy = TRUE),
-  prediction_layer = "suitability_trunc",
-  sampling         = "centroid",
-  method           = "suitability",
-  seed             = 1
-)
-head(gen_occ)   # x, y coordinates of the 100 virtual sightings
+occ_centroid <- sample_data(n_occ = 100, prediction = pred_df,
+                            prediction_layer = "suitability_trunc",
+                            sampling = "centroid", method = "suitability", seed = 1)
+
+occ_edge     <- sample_data(n_occ = 100, prediction = pred_df,
+                            prediction_layer = "suitability_trunc",
+                            sampling = "edge",     method = "suitability", seed = 1)
+
+occ_random   <- sample_data(n_occ = 100, prediction = pred_df,
+                            prediction_layer = "suitability_trunc",
+                            sampling = "random",   method = "suitability", seed = 1)
+
+head(occ_centroid)   # x, y coordinates of the virtual sightings
 ```
 
-**Now load the bias layer that ships with `nicheR`** and draw a *biased* sample.
-(We look the file up by name so it keeps working regardless of the exact filename.)
+**First, see each strategy in E-space** — *how* the points sit inside the niche.
+We pull each sample's climate values out of `ma_bios` with `terra::extract()` and
+draw them over the niche ellipse, one panel per strategy:
 
-```{r a-sample-load-bias}
-# Find and open the example bias raster from nicheR's extdata folder:
-bias_file  <- list.files(system.file("extdata", package = "nicheR"),
-                         pattern = "bias", full.names = TRUE)[1]
-bias_layer <- terra::rast(bias_file)
+```{r a-sample-espace, fig.width=9, fig.height=3.6}
+# Look up bio_1 & bio_12 at each sampled location ([, -1] drops the ID column):
+env_of <- function(occ) {
+  terra::extract(ma_bios[[c("bio_1", "bio_12")]], occ[, c("x", "y")])[, -1]
+}
 
-bias_layer          # a SpatRaster of relative sampling effort (higher = sampled more)
-terra::plot(bias_layer, main = "nicheR example bias layer (sampling effort)")
+par(mfrow = c(1, 3))
+for (s in list(c("centroid", "#0ba800"), c("edge", "#e0a800"), c("random", "#c0392b"))) {
+  occ  <- switch(s[1], centroid = occ_centroid, edge = occ_edge, random = occ_random)
+  eocc <- env_of(occ)
+  plot_ellipsoid(
+    generalist,
+    background = back_data[, c("bio_1", "bio_12")],
+    col_ell = "#2c3e50", col_bg = "grey88", lwd = 2, pch = 20, cex_bg = 0.3,
+    xlab = "bio_1 (temperature)", ylab = "bio_12 (precipitation)",
+    main = paste0("E-space: sampling = \"", s[1], "\"")
+  )
+  points(eocc, pch = 20, col = s[2])
+}
+par(mfrow = c(1, 1))
 ```
 
-::: {.warning}
-**One name to confirm.** I inferred that `sample_data()` takes the bias raster
-through an argument called **`bias`**. If your version uses a different name
-(e.g. `bias_layer`), change that single word in the next chunk.
-:::
+**Now the same three samples in G-space** — *where* they fall on the map:
 
-```{r a-sample-biased}
-# Same niche, but now sampling effort is skewed by the bias layer:
-gen_occ_biased <- sample_data(
-  n_occ            = 100,
-  prediction       = as.data.frame(gen_pred, xy = TRUE),
-  prediction_layer = "suitability_trunc",
-  sampling         = "random",
-  method           = "suitability",
-  bias             = bias_layer,   # <- the bias layer does the skewing
-  seed             = 1
-)
-head(gen_occ_biased)
-```
-
-**Compare the two samples on the map:**
-
-```{r a-sample-compare, fig.width=7, fig.height=6}
-terra::plot(gen_pred[["suitability_trunc"]],
-            main = "Unbiased (blue) vs. biased (red) virtual sightings")
-points(gen_occ$x,        gen_occ$y,        pch = 20, col = "#5E78C4")  # unbiased
-points(gen_occ_biased$x, gen_occ_biased$y, pch = 20, col = "#c0392b")  # biased
+```{r a-sample-plot, fig.width=9, fig.height=3.6}
+par(mfrow = c(1, 3))
+for (s in list(c("centroid", "#0ba800"), c("edge", "#e0a800"), c("random", "#c0392b"))) {
+  occ <- switch(s[1], centroid = occ_centroid, edge = occ_edge, random = occ_random)
+  terra::plot(gen_pred[["suitability_trunc"]], main = paste0("G-space: sampling = \"", s[1], "\""))
+  points(occ$x, occ$y, pch = 20, col = s[2])
+}
+par(mfrow = c(1, 1))
 ```
 
 ::: {.seealso}
-**What you should see.** The blue (unbiased) points spread across the suitable
-core, while the red (biased) points bunch up wherever the bias layer is high —
-the same clumping problem Module B exists to fix. You have just *manufactured*
-biased data to practise on.
+**What you should see.** In **E-space** (top row) the strategy is obvious: blue
+`"centroid"` points cluster at the niche centre, gold `"edge"` points hug the
+ellipse boundary, and red `"random"` points fill the whole niche. In **G-space**
+(bottom row) the same points map back onto the landscape — clustered in the
+suitable core, ringing its margin, or scattered across it. Three ways to turn a
+niche back into occurrence data.
 :::
 
 ## Your turn — Module A challenges {#a-challenge}
