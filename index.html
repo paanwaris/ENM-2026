@@ -3204,20 +3204,18 @@ packages: <strong><code>terra</code></strong> (spatial/raster tools),
 <strong><code>nicheR</code></strong> (Module A), and
 <strong><code>bean</code></strong> (Module B).</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Run this block ONCE. It is set to eval=FALSE so it never runs automatically.</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># 1) terra comes from CRAN, the official R package repository:</span></span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;terra&quot;</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co"># 2) nicheR and bean live on GitHub, so we install them with the &#39;remotes&#39; helper:</span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;remotes&quot;</span>)</span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;EscobarLab/nicheR&quot;</span>)   <span class="co"># Module A  (Day 1)</span></span>
-<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;EscobarLab/bean&quot;</span>)      <span class="co"># Module B  (Day 2)</span></span></code></pre></div>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co"># All three packages are on CRAN, so a normal install.packages() is all you need:</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;terra&quot;</span>)    <span class="co"># raster / spatial tools</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;nicheR&quot;</span>)   <span class="co"># Module A  (Day 1)</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;bean&quot;</span>)     <span class="co"># Module B  (Day 2)</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co"># (Tip: you can install all three at once —</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co">#  install.packages(c(&quot;terra&quot;, &quot;nicheR&quot;, &quot;bean&quot;)) )</span></span></code></pre></div>
 <div class="warning">
-<p><strong>First-time install tips.</strong> GitHub installs can ask to
-update other packages — choosing “None” is usually fine for a workshop.
-On Windows you may be prompted to install <strong>Rtools</strong>; on
-macOS you may need the <strong>Xcode command-line tools</strong>. If an
-install fails, see <a href="#troubleshooting">Troubleshooting</a>.</p>
+<p><strong>First-time install tips.</strong> Installing may pull in a
+few dependency packages — just let it finish. If R asks whether to
+update other packages, choosing “None” is usually fine for a workshop.
+If an install fails, see <a href="#troubleshooting">Troubleshooting</a>.</p>
 </div>
 <p>Once installed, you only ever <em>load</em> them (no re-installing)
 at the top of a session:</p>
@@ -4066,11 +4064,11 @@ FAQ</h1>
 <code>prepare_bean</code>).</strong> The package isn’t loaded. Run
 <code>library(nicheR)</code> / <code>library(bean)</code>. If that also
 errors, the package isn’t installed yet — see <a href="#install">Install</a>.</p>
-<p><strong><code>install_github()</code> fails.</strong> Make sure
-<code>remotes</code> is installed
-(<code>install.packages(&quot;remotes&quot;)</code>). On Windows install
-<strong>Rtools</strong>; on macOS install the Xcode command-line tools
-with <code>xcode-select --install</code> in a terminal.</p>
+<p><strong><code>install.packages(&quot;nicheR&quot;)</code> fails.</strong> Check
+your internet connection and that you spelled the name correctly
+(case-sensitive). If R offers to install from source and that fails,
+choose the binary version when prompted, or update R to the current
+release and try again.</p>
 <p><strong><code>system.file(...)</code> returns an empty string
 <code>&quot;&quot;</code>.</strong> The example data file wasn’t found, usually
 because the package didn’t install completely. Reinstall the
@@ -4314,10 +4312,8 @@ used.</p>
 ##   LAPACK version 3.12.1
 ## 
 ## locale:
-## [1] LC_COLLATE=English_United States.utf8 
-## [2] LC_CTYPE=English_United States.utf8   
-## [3] LC_MONETARY=English_United States.utf8
-## [4] LC_NUMERIC=C                          
+## [1] LC_COLLATE=English_United States.utf8  LC_CTYPE=English_United States.utf8   
+## [3] LC_MONETARY=English_United States.utf8 LC_NUMERIC=C                          
 ## [5] LC_TIME=English_United States.utf8    
 ## 
 ## time zone: Asia/Bangkok
@@ -4333,10 +4329,10 @@ used.</p>
 ##  [1] digest_0.6.37     R6_2.6.1          codetools_0.2-20  fastmap_1.2.0    
 ##  [5] xfun_0.53         cachem_1.1.0      knitr_1.51        htmltools_0.5.8.1
 ##  [9] rmarkdown_2.31    lifecycle_1.0.4   cli_3.6.5         vctrs_0.6.5      
-## [13] sass_0.4.10       jquerylib_0.1.4   compiler_4.5.2    rstudioapi_0.17.1
-## [17] tools_4.5.2       evaluate_1.0.5    bslib_0.9.0       Rcpp_1.1.0       
-## [21] yaml_2.3.10       otel_0.2.0        jsonlite_2.0.0    rlang_1.1.6      
-## [25] MASS_7.3-65</code></pre>
+## [13] sass_0.4.10       jquerylib_0.1.4   rsconnect_1.6.0   compiler_4.5.2   
+## [17] rstudioapi_0.17.1 tools_4.5.2       bslib_0.9.0       evaluate_1.0.5   
+## [21] yaml_2.3.10       Rcpp_1.1.0        otel_0.2.0        jsonlite_2.0.0   
+## [25] rlang_1.1.6       MASS_7.3-65</code></pre>
 <p><br></p>
 <p><em>End of guide — happy modeling! 🌳</em></p>
 </div>
