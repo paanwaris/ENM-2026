@@ -217,27 +217,29 @@ library(terra)     # for raster maps (G-space)
 library(nicheR)    # for ellipsoid niches (E-space)
 ```
 
-`nicheR` ships with example data so we can practise immediately:
+For this workshop we use environmental layers for **Thailand**, so the maps are
+familiar to everyone in the room:
 
-- **`ma_bios`** — a stack of 8 bioclimatic raster layers for the Americas
-  (our **G-space** map). We open it with `terra::rast()`.
+- **`thai`** — a stack of bioclimatic raster layers for Thailand (our **G-space**
+  map), stored in the workshop's `inst/` folder. We open it with `terra::rast()`.
 - **`back_data`** — a table of background environmental points (our **E-space**
-  "available conditions" cloud).
-
-`system.file()` simply finds where the example file was installed on your computer.
+  "available conditions" cloud), which we build straight from the raster.
 
 ```{r a-load-data}
-# The environmental raster stack (Geographic space)
-ma_bios <- terra::rast(system.file("extdata", "ma_bios.tif", package = "nicheR"))
-ma_bios            # prints a summary: 8 layers named bio_1, bio_5, ... bio_15
+# The environmental raster stack for Thailand (Geographic space)
+thai <- terra::rast("inst/thai_env.tif")
+thai            # 4 layers: bio_1, bio_12, bio_15, bio_4  (88 x 48 cells)
+plot(thai)
 
-# The background environmental cloud (a data.frame)
-data("back_data", package = "nicheR")
-head(back_data)    # columns: x, y, bio_1, bio_5, bio_6, bio_7, bio_12, ...
+# Build the background environmental cloud from the raster (one row per pixel)
+back_data <- as.data.frame(thai, xy = TRUE)
+head(back_data)    # columns: x, y, bio_1, bio_12, bio_15, bio_4
 ```
 
-To keep things beginner-friendly we use just **two** variables all day:
-**`bio_1`** (mean annual temperature) and **`bio_12`** (annual precipitation).
+To keep things beginner-friendly but realistic, we use **three** variables today:
+**`bio_1`** (mean annual temperature), **`bio_4`** (temperature seasonality), and
+**`bio_12`** (annual precipitation). The E-space *plots* show two variables at a
+time (temperature vs. precipitation); the niche itself lives in all three.
 
 ## First, just *look* at the environment {#a-espace}
 
@@ -282,19 +284,21 @@ A **generalist** tolerates a *wide* range of conditions; a **specialist**
 tolerates only a *narrow* range. We just give them different ranges.
 
 ```{r a-build-ellipsoids}
-# GENERALIST: broad tolerance — wide temperature AND wide precipitation
+# GENERALIST: broad tolerance across ALL THREE Thai variables
 generalist_range <- data.frame(
-  bio_1  = c(3, 28),      # tolerates 3 °C up to 28 °C   (very wide)
-  bio_12 = c(200, 3500)   # tolerates 200 up to 3500 mm  (very wide)
+  bio_1  = c(22, 28.5),      # temperature: nearly the whole Thai range (°C)
+  bio_4  = c(100, 300),     # temperature seasonality: wide
+  bio_12 = c(810, 1500)    # precipitation: nearly the whole Thai range (mm)
 )
 
-# SPECIALIST: narrow tolerance — only warm AND only fairly dry
+# SPECIALIST: narrow tolerance — warm, stable climate, moderate rainfall
 specialist_range <- data.frame(
-  bio_1  = c(22, 27),     # only 22–27 °C    (narrow)
-  bio_12 = c(600, 1200)   # only 600–1200 mm (narrow)
+  bio_1  = c(26, 28),      # only warm places
+  bio_4  = c(100, 150),     # only low seasonality (stable temperature)
+  bio_12 = c(810, 2000)   # only moderate rainfall
 )
 
-# Build the two ellipsoid niches
+# Build the two ellipsoid niches (now 3-dimensional)
 generalist <- build_ellipsoid(range = generalist_range, cl = 0.95)
 specialist <- build_ellipsoid(range = specialist_range, cl = 0.95)
 
@@ -306,10 +310,10 @@ generalist
 **What you should see** (an abridged print of a `nicheR_ellipsoid`):
 
 ```text
-nicheR ellipsoid  (2 dimensions: bio_1, bio_12)
- centroid : bio_1 = 15.50 , bio_12 = 1850.0
+nicheR ellipsoid  (3 dimensions: bio_1, bio_4, bio_12)
+ centroid : bio_1 = 24.5 , bio_4 = 195 , bio_12 = 2275
  cl       : 0.95
- volume   : 1.86e+04      <- large, because the niche is broad
+ volume   : large  <- broad, because the niche spans wide ranges
 ```
 :::
 
@@ -342,36 +346,68 @@ generalist$volume / specialist$volume   # how many times larger is the generalis
 ```
 :::
 
-| Species | Temp. range | Precip. range | Niche volume | In plain words |
-|:--|:-:|:-:|:-:|:--|
-| **Generalist** | 3–28 °C | 200–3500 mm | **large** | jack-of-all-environments |
-| **Specialist** | 22–27 °C | 600–1200 mm | **small** | fussy; warm & dry only |
+| Species | bio_1 (temp) | bio_4 (seasonality) | bio_12 (precip) | Niche volume | In plain words |
+|:--|:-:|:-:|:-:|:-:|:--|
+| **Generalist** | 21–28 °C | 60–330 | 850–3700 mm | **large** | jack-of-all-environments |
+| **Specialist** | 24–27 °C | 60–130 | 1000–2000 mm | **small** | fussy; warm, stable, moderate rain |
 
 ## See both niches in E-space {#a-compare-espace}
 
-`plot_ellipsoid()` opens a plot with the first niche; **`add_ellipsoid()`**
-overlays a second one on the *same axes* so we can compare them directly against
-the background of available conditions.
+Because the niche now lives in **three** dimensions, the clearest way to look at
+it is **`plot_ellipsoid_pairs()`**, which draws **all pairwise 2-D projections**
+(bio_1 × bio_4, bio_1 × bio_12, bio_4 × bio_12) on one shared scale. We colour
+every point by its **suitability**, so the niche core (bright) and the region
+outside it (grey) are obvious. First we score the background points with
+`predict()`, then hand that prediction to the pairs plot.
 
-```{r a-plot-two-ellipsoids, fig.width=7, fig.height=5.5}
-# Draw the generalist niche over the environmental background
-plot_ellipsoid(
-  object     = generalist,
-  background = back_data[, c("bio_1", "bio_12")],
-  col_ell    = "#5E78C4",  col_bg = "grey85",   # blue ellipse, grey cloud
-  lwd = 2.5, pch = 20, cex_bg = 0.35,
-  xlab = "bio_1 (temperature)", ylab = "bio_12 (precipitation)",
-  main = "Generalist (blue) vs. Specialist (pink)"
+```{r a-pairs-generalist, fig.width=8, fig.height=7}
+# Score the background points, keeping the truncated suitability (0 = outside):
+gen_bg <- predict(
+  generalist,
+  newdata               = back_data[, generalist$var_names],  # the niche's 3 variables
+  include_suitability   = FALSE,
+  include_mahalanobis   = FALSE,
+  suitability_truncated = TRUE,
+  verbose               = FALSE
 )
 
-# Overlay the specialist niche in pink
-add_ellipsoid(specialist, col_ell = "#D9559E", lwd = 2.5)
+# GENERALIST — every pairwise projection, coloured by suitability:
+plot_ellipsoid_pairs(
+  generalist,
+  prediction = gen_bg,
+  col_layer  = "suitability_trunc",   # colour the points by this column
+  col_bg     = "#d9d9d9",             # grey = outside the niche
+  col_ell    = "#5E78C4",             # ellipse boundary colour
+  lwd = 2, pch = 16, cex_bg = 0.4
+)
+```
+
+```{r a-pairs-specialist, fig.width=8, fig.height=7}
+# SPECIALIST — the same, for comparison:
+spec_bg <- predict(
+  specialist,
+  newdata               = back_data[, specialist$var_names],
+  include_suitability   = FALSE,
+  include_mahalanobis   = FALSE,
+  suitability_truncated = TRUE,
+  verbose               = FALSE
+)
+
+plot_ellipsoid_pairs(
+  specialist,
+  prediction = spec_bg,
+  col_layer  = "suitability_trunc",
+  col_bg     = "#d9d9d9",
+  col_ell    = "#D9559E",
+  lwd = 2, pch = 16, cex_bg = 0.4
+)
 ```
 
 ::: {.seealso}
-**What you should see.** The blue **generalist** ellipse covers most of the
-climate cloud; the pink **specialist** ellipse hugs a small warm–dry corner —
-just like this schematic (its two mini-maps preview the punch line):
+**What you should see.** Two multi-panel figures, one per niche. In every panel
+the **generalist**'s coloured (suitable) region fills a large part of the cloud,
+while the **specialist**'s coloured region is a small bright patch. Same
+landscape, different niche breadth — the punch line below.
 :::
 
 <p align="center"><img src="images/concepts/concept_generalist_specialist.png" width="94%"></p>
@@ -399,41 +435,52 @@ a valid shape (it must stay **positive-definite**). Check the safe range first
 with **`$cov_limits`**.
 
 ```{r a-reshape}
-# The safe covariance range for this niche's variable pair:
+# The safe covariance range for this niche's variable pairs:
 generalist$cov_limits
 
-# A magnitude that is always valid is anything below sqrt(var1 * var2).
-# We take half of that, which corresponds to a correlation of about 0.5:
-vars     <- diag(generalist$cov_matrix)          # the two marginal variances
-safe_cov <- 0.5 * sqrt(vars[[1]] * vars[[2]])
+# We apply the SAME covariance to EVERY pair of variables. To stay valid
+# (positive-definite), it must stay below the tightest pair's sqrt(var_i * var_j);
+# we take 40% of that smallest bound:
+vname    <- diag(generalist$cov_matrix)                 # marginal variances (named)
+sds      <- sqrt(vname)
+prods    <- outer(sds, sds)                             # sqrt(var_i * var_j) for each pair
+safe_cov <- 0.4 * min(prods[upper.tri(prods)])
 
-# Tilt the SAME niche two ways — without rebuilding it from ranges:
-gen_pos <- update_ellipsoid_covariance(generalist, covariance =  safe_cov)  # uphill
-gen_neg <- update_ellipsoid_covariance(generalist, covariance = -safe_cov)  # downhill
+# Tilt the SAME niche two ways — a single number updates ALL variable pairs:
+gen_pos <- update_ellipsoid_covariance(generalist, covariance =  safe_cov)  # every pair, +
 
 # Adding correlation makes the oval narrower, so the volume shrinks:
 generalist$volume
 gen_pos$volume
 ```
 
-```{r a-reshape-plot, fig.width=7, fig.height=5.5}
-# Compare the original (grey) with the two tilted versions
-plot_ellipsoid(
-  generalist,
-  background = back_data[, c("bio_1", "bio_12")],
-  col_ell = "#7f8c8d", col_bg = "grey88", lwd = 2.5, pch = 20, cex_bg = 0.35,
-  xlab = "bio_1 (temperature)", ylab = "bio_12 (precipitation)",
-  main = "Same niche, reshaped: zero (grey) / positive (blue) / negative (pink)"
+```{r a-reshape-plot, fig.width=8, fig.height=7}
+# Score the tilted (positive-covariance) niche across the background:
+gen_pos_bg <- predict(
+  gen_pos,
+  newdata               = back_data[, gen_pos$var_names],
+  include_suitability   = FALSE,
+  include_mahalanobis   = FALSE,
+  suitability_truncated = TRUE,
+  verbose               = FALSE
 )
-add_ellipsoid(gen_pos, col_ell = "#5E78C4", lwd = 2.5)   # positive covariance
-add_ellipsoid(gen_neg, col_ell = "#D9559E", lwd = 2.5)   # negative covariance
+
+# All pairwise projections of the tilted niche, coloured by suitability:
+plot_ellipsoid_pairs(
+  gen_pos,
+  prediction = gen_pos_bg,
+  col_layer  = "suitability_trunc",
+  col_bg     = "#d9d9d9",
+  col_ell    = "#5E78C4",
+  lwd = 2, pch = 16, cex_bg = 0.4
+)
 ```
 
 ::: {.seealso}
-**What you should see.** Three ovals sharing the same centre: the grey one
-upright, the blue one tilted uphill, the pink one tilted downhill — exactly like
-the schematic above. Because everything is recomputed internally, `gen_pos` and
-`gen_neg` are ready to hand straight to `predict()`.
+**What you should see.** All three pairwise panels are now **tilted**, because we
+gave every variable pair the same positive covariance. Swap `gen_pos` for
+`gen_neg` to see all of them flip the other way. Because everything is recomputed
+internally, both niches are ready to hand straight to `predict()`.
 :::
 
 ::: {.tip}
@@ -455,21 +502,22 @@ and turns that distance into a **suitability** score.
 
 Useful arguments:
 
-- **`newdata`** — the environment to score (our raster `ma_bios`).
+- **`newdata`** — the environment to score (our Thai raster `thai`).
 - **`suitability_truncated = TRUE`** — outside the ellipsoid, force suitability to
   `0`, giving a clean "inside vs. outside the niche" surface.
 
 ```{r a-predict}
-# Score every pixel for each species (returns a SpatRaster of suitability)
+# Score every pixel for each species (returns a SpatRaster of suitability).
+# We pass ALL THREE variables the niche was built on:
 gen_pred <- predict(
   object                = generalist,
-  newdata               = ma_bios[[c("bio_1", "bio_12")]],  # match the niche's variables
+  newdata               = thai[[c("bio_1", "bio_4", "bio_12")]],
   suitability_truncated = TRUE
 )
 
 spec_pred <- predict(
   object                = specialist,
-  newdata               = ma_bios[[c("bio_1", "bio_12")]],
+  newdata               = thai[[c("bio_1", "bio_4", "bio_12")]],
   suitability_truncated = TRUE
 )
 
@@ -507,8 +555,8 @@ par(mfrow = c(1, 1))   # reset the plotting layout
 ::: {.seealso}
 **What you should see.** The **generalist** map lights up a **large** area (it
 fits many places); the **specialist** is suitable only in a **small** area (few
-places are both warm and dry enough). **Take-home: broader niche → broader
-predicted range.**
+places are warm, stable, and moderately wet enough). **Take-home: broader niche →
+broader predicted range.**
 :::
 
 ## (Optional) Turn a niche into virtual sightings {#a-sample}
@@ -544,13 +592,14 @@ head(occ_centroid)   # x, y coordinates of the virtual sightings
 ```
 
 **First, see each strategy in E-space** — *how* the points sit inside the niche.
-We pull each sample's climate values out of `ma_bios` with `terra::extract()` and
-draw them over the niche ellipse, one panel per strategy:
+Two dimensions (temperature vs. precipitation) are enough here: we pull each
+sample's `bio_1` and `bio_12` values out of the `thai` raster and draw them over
+the niche, one panel per strategy.
 
 ```{r a-sample-espace, fig.width=9, fig.height=3.6}
 # Look up bio_1 & bio_12 at each sampled location ([, -1] drops the ID column):
 env_of <- function(occ) {
-  terra::extract(ma_bios[[c("bio_1", "bio_12")]], occ[, c("x", "y")])[, -1]
+  terra::extract(thai[[c("bio_1", "bio_12")]], occ[, c("x", "y")])[, -1]
 }
 
 par(mfrow = c(1, 3))
@@ -560,6 +609,7 @@ for (s in list(c("centroid", "#0ba800"), c("edge", "#e0a800"), c("random", "#c03
   plot_ellipsoid(
     generalist,
     background = back_data[, c("bio_1", "bio_12")],
+    dim = c(1, 3),   # var_names are c("bio_1","bio_4","bio_12"); 1 & 3 = bio_1 vs bio_12
     col_ell = "#2c3e50", col_bg = "grey88", lwd = 2, pch = 20, cex_bg = 0.3,
     xlab = "bio_1 (temperature)", ylab = "bio_12 (precipitation)",
     main = paste0("E-space: sampling = \"", s[1], "\"")
@@ -582,23 +632,25 @@ par(mfrow = c(1, 1))
 ```
 
 ::: {.seealso}
-**What you should see.** In **E-space** (top row) the strategy is obvious: blue
+**What you should see.** In **E-space** (top row) the strategy is obvious: green
 `"centroid"` points cluster at the niche centre, gold `"edge"` points hug the
-ellipse boundary, and red `"random"` points fill the whole niche. In **G-space**
-(bottom row) the same points map back onto the landscape — clustered in the
-suitable core, ringing its margin, or scattered across it. Three ways to turn a
-niche back into occurrence data.
+boundary, and red `"random"` points fill the whole niche. In **G-space** (the
+three maps) the same points map back onto Thailand — clustered in the suitable
+core, ringing its margin, or scattered across it. Three ways to turn a niche back
+into occurrence data.
 :::
 
 ## Your turn — Module A challenges {#a-challenge}
 
 ::: {.challenge}
-**Challenge A1.** Build a *third* species that is a **cold specialist**
-(e.g. `bio_1` between −2 and 8 °C, `bio_12` between 1500 and 3000 mm). Predict
-and map it. Where does it light up compared with the warm specialist?
+**Challenge A1.** Build a *third* species that is a **wet-forest specialist**
+(e.g. `bio_1` between 22 and 25 °C, `bio_4` between 60 and 110, `bio_12` between
+2500 and 3700 mm). Predict and map it over Thailand. Where does it light up
+compared with the warm specialist?
 
-**Challenge A2.** Change the generalist's temperature range to `c(3, 20)` and
-re-check `$volume`. Did the niche get bigger or smaller? Does the map agree?
+**Challenge A2.** Widen the generalist's precipitation range to `c(806, 3802)`
+(the full Thai range) and re-check `$volume`. Did the niche get bigger or smaller?
+Does the map agree?
 
 <details><summary>Show a hint</summary>
 
@@ -686,8 +738,8 @@ raster stack. Arguments:
 
 ```{r b-load-prepare}
 # Thai environmental layers (Geographic space) and biased deer occurrences
-env <- terra::rast(system.file("extdata", "thai_env.tif",       package = "bean"))
-occ <- read.csv(     system.file("extdata", "Rusa_unicolor.csv", package = "bean"))
+env <- terra::rast(system.file("extdata", "thai_env.tif",package = "bean"))
+occ <- read.csv(system.file("extdata", "Rusa_unicolor.csv", package = "bean"))
 
 # Clean + attach environment + scale variables
 prepared <- prepare_bean(
@@ -713,24 +765,34 @@ their scaled climate values (roughly −3 to +3):
 ```
 :::
 
-## See the bias in environmental space {#b-see-bias}
+## See the original data & its bias {#b-see-bias}
 
-The clumping on the map becomes **dense clusters in E-space**. Plotting the
-prepared points shows exactly where the data are over-represented — those are the
-conditions the model would otherwise over-learn.
+Before touching anything, let's *look* at the raw records — first on the map, then
+in environmental space.
+
+**On the map (G-space):** the Sambar deer records plotted over Thai temperature.
+Notice how they **clump** in a few areas instead of covering the country evenly.
+
+```{r b-plot-occ-map, fig.width=6, fig.height=6}
+terra::plot(env[["bio_1"]], main = "Sambar deer records over Thai temperature (bio_1)")
+points(prepared$x, prepared$y, pch = 20, cex = 0.5, col = "#c0392b")
+```
+
+**In environmental space (E-space):** that spatial clumping becomes **dense
+clusters** — the exact conditions the model would otherwise over-learn.
 
 ```{r b-plot-prepared, fig.width=6, fig.height=5}
 plot(prepared[, c("bio_1", "bio_12")],
      pch = 20, col = "#c0392b",
      xlab = "bio_1 (scaled temperature)",
      ylab = "bio_12 (scaled precipitation)",
-     main = "Occurrences in E-space (note the dense clusters)")
+     main = "Original occurrences in E-space (dense clusters = bias)")
 ```
 
 ::: {.seealso}
-**What you should see.** Tight knots of red points = over-sampled environments.
-These are exactly what we will thin out (compare with the "BEFORE" panel in the
-thinning diagram above).
+**What you should see.** On the map, red points bunch in a few regions rather than
+spreading evenly. In E-space, tight knots of points mark the over-sampled
+environments — the bias we are about to thin out.
 :::
 
 ## Step 1 — Choose an objective grid resolution {#b-resolution}
@@ -813,11 +875,22 @@ The retained records live in **`thinned$thinned_data`**; the counts are in
 `thinned$n_original` and `thinned$n_thinned`.
 :::
 
-## Step 3 — Visualize before vs. after {#b-plot-thin}
+## Step 3 — See the thinned data, then compare {#b-plot-thin}
 
-**`plot_bean()`** overlays the **original** (biased) points and the **thinned**
-points so the effect is obvious. It needs the original data, the thinned object,
-and the variables to display.
+**The thinned data on its own** — the same species, but with the clustering
+removed so the points spread evenly across environmental space:
+
+```{r b-plot-thinned, fig.width=6, fig.height=5}
+plot(thinned$thinned_data[, c("bio_1", "bio_12")],
+     pch = 20, col = "#2980b9",
+     xlab = "bio_1 (scaled temperature)",
+     ylab = "bio_12 (scaled precipitation)",
+     main = "Thinned occurrences in E-space (evenly spread)")
+```
+
+**Original vs. thinned, overlaid.** **`plot_bean()`** draws the **original**
+(biased) points and the **thinned** points together so the effect is obvious. It
+needs the original data, the thinned object, and the variables to display.
 
 ```{r b-plot-bean, fig.width=8, fig.height=5}
 plot_bean(
@@ -828,99 +901,102 @@ plot_bean(
 ```
 
 ::: {.seealso}
-**What you should see.** The dense clusters dissolve into an even spread across
-the niche. The model will now "see" the species' true environmental range, not
-the sampling effort.
+**What you should see.** On its own, the thinned cloud is an even spread with no
+dense knots. In the overlay, the original clusters (one colour) collapse to the
+scattered thinned points (another) — the model will now "see" the species' true
+environmental range, not the sampling effort.
 :::
 
-## Step 4 — Fit the niche to the cleaned data {#b-fit}
+## Step 4 — Fit the niche: original vs. cleaned data {#b-fit}
 
-With the bias removed, we fit an ellipsoid niche to the **thinned** points using
-**`fit_ellipsoid()`**. Arguments:
+To see what the bias correction buys us, we fit an ellipsoid niche **twice** with
+**`fit_ellipsoid()`** — first on the **original (biased)** occurrences, then on
+the **thinned** ones. Arguments:
 
-- **`data`** — the thinned occurrences (`thinned$thinned_data`).
+- **`data`** — the occurrences to fit (`prepared`, or `thinned$thinned_data`).
 - **`env_vars`** — the niche variables.
 - **`method`** — `"covmat"` (classical covariance, default) or `"mve"` (robust
   minimum-volume ellipsoid, resistant to outliers).
 - **`level`** — confidence level enclosed by the ellipse (e.g. `0.95`).
 
-```{r b-fit-ellipsoid, fig.width=6.5, fig.height=5.5}
-fit <- fit_ellipsoid(
+```{r b-fit-ellipsoid, fig.width=9, fig.height=4.5}
+# Fit on the ORIGINAL (biased) data:
+fit_original <- fit_ellipsoid(
+  data     = prepared,
+  env_vars = c("bio_1", "bio_12"),
+  method   = "covmat",
+  level    = 0.95
+)
+
+# Fit on the THINNED (bias-corrected) data:
+fit_thinned <- fit_ellipsoid(
   data     = thinned$thinned_data,
   env_vars = c("bio_1", "bio_12"),
   method   = "covmat",
   level    = 0.95
 )
 
-print(fit)   # centroid + covariance of the fitted niche
-plot(fit)    # the fitted ellipse, with points shown inside/outside
+# Compare the two fitted ellipses (left = original, right = thinned):
+par(mfrow = c(1, 2))
+plot(fit_original)
+plot(fit_thinned)
+par(mfrow = c(1, 1))
 ```
 
 ::: {.seealso}
-**What you should see.** A fitted ellipse over the thinned points; points inside
-are within the species' estimated tolerance, and a diamond marks the centroid
-(its optimum).
+**What you should see.** Two fitted ellipses. The **original** fit (left) is
+pulled toward the over-sampled cluster, so its centre and tilt reflect the
+sampling effort. The **thinned** fit (right) sits more evenly over the species'
+true environmental range.
 :::
 
-## Step 5 — Project the niche to a suitability map {#b-project}
+## Step 5 — Project the niches to suitability maps {#b-project}
 
 A neat design feature: a `bean` niche also carries `nicheR`'s class, so once
 `nicheR` is loaded, its **`predict()`** method works on the `bean` object
-directly — no conversion needed. We project onto the Thai raster and map it.
+directly — no conversion needed. We project **both** niches onto the Thai raster:
+the original (biased) fit **first**, then the thinned one.
 
 ::: {.warning}
-**Note on units.** Because we scaled the variables in `prepare_bean()`, the
-raster must be on the *same* scale before predicting — **or** run the whole
-module with `transform = "none"` to keep raw units and project directly. The
-concept is identical either way; if your map looks odd, this mismatch is the
-usual cause.
+**Note on units.** Because we scaled the variables in `prepare_bean()`, the raster
+must be on the *same* scale before predicting (`scale(env...)`) — **or** run the
+whole module with `transform = "none"` to keep raw units and project directly. If
+your map looks odd, this mismatch is the usual cause.
 :::
 
 ```{r b-project, fig.width=6.5, fig.height=6}
 library(nicheR)   # provides the predict() method for bean ellipsoids
 
-suitability <- predict(
-  object                = fit,
-  newdata               = scale(env[[c("bio_1", "bio_12")]]),
-  suitability_truncated = TRUE
-)
+env_s <- scale(env[[c("bio_1", "bio_12")]])   # match the scaling used to fit
 
-terra::plot(suitability[["suitability_trunc"]],
-            main = "Sambar deer — predicted suitability (bias-corrected)")
+# 1) ORIGINAL (biased) niche:
+suit_original <- predict(fit_original, newdata = env_s, suitability_truncated = TRUE)
+terra::plot(suit_original[["suitability_trunc"]],
+            main = "Suitability from ORIGINAL (biased) data")
+
+# 2) THINNED (bias-corrected) niche:
+suit_thinned <- predict(fit_thinned, newdata = env_s, suitability_truncated = TRUE)
+terra::plot(suit_thinned[["suitability_trunc"]],
+            main = "Suitability from THINNED data")
 ```
 
 ::: {.seealso}
-**What you should see.** A suitability surface for Thailand computed from the
-*cleaned* niche — brighter where the deer's preferred climate occurs.
+**What you should see.** Two maps of Thailand, in order: first the suitability
+predicted from the **original biased** niche, then from the **thinned** one. The
+biased map leans toward the over-sampled climates; the thinned map is more even.
 :::
 
 ## Step 6 — Compare the maps: with vs. without thinning {#b-evaluate}
 
-The final question: **does removing the bias change the predicted map?** We fit a
-niche to the **original (biased)** occurrences, fit another to the **thinned**
-occurrences, project both across Thailand, and put the two suitability maps side
-by side in G-space.
+The final question: **does removing the bias change the predicted map?** We
+already fitted both niches (Step 4) and projected both (Step 5), so here we simply
+place the two suitability surfaces — `suit_original` and `suit_thinned` — side by
+side in G-space.
 
 ```{r b-compare, fig.width=9, fig.height=5}
-library(nicheR)   # provides the predict() method for bean ellipsoids
-
-# 1) Fit a niche to the ORIGINAL (biased, un-thinned) occurrences:
-fit_biased <- fit_ellipsoid(
-  data     = prepared,
-  env_vars = c("bio_1", "bio_12"),
-  method   = "covmat",
-  level    = 0.95
-)
-# (`fit`, the THINNED niche, was already created in Step 4.)
-
-# 2) Project BOTH niches onto Thailand (same scaling as Step 5):
-env_s        <- scale(env[[c("bio_1", "bio_12")]])
-suit_biased  <- predict(fit_biased, newdata = env_s, suitability_truncated = TRUE)
-suit_thinned <- predict(fit,        newdata = env_s, suitability_truncated = TRUE)
-
-# 3) Compare the two suitability maps side by side:
+# Reuse the two projections made in Step 5, side by side:
 par(mfrow = c(1, 2))
-terra::plot(suit_biased[["suitability_trunc"]],
+terra::plot(suit_original[["suitability_trunc"]],
             main = "Without thinning\n(biased data)")
 terra::plot(suit_thinned[["suitability_trunc"]],
             main = "With thinning\n(bias-corrected)")
