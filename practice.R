@@ -96,7 +96,7 @@ burn_suit <- predict(burn_fit, newdata = env[[c("bio_1", "bio_4", "bio_12")]],
                      suitability_truncated = TRUE)
 
 plot(burn_suit[["suitability_trunc"]],
-     main = "Fire (burn) — suitability (WITHOUT thinning)")
+     main = "Fire (burn) — suitability")
 
 
 # ==========================================================================
