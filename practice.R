@@ -88,7 +88,7 @@ burn_prep <- prepare_bean(
 )
 
 # Fit a niche to the fire points WITHOUT thinning, then predict + plot:
-burn_fit  <- fit_ellipsoid(burn_prep, env_vars = c("bio_1","bio_4", "bio_12"),
+burn_fit  <- fit_ellipsoid(burn_prep, env_vars = c("bio_1", "bio_4", "bio_12"),
                            method = "covmat", level = 0.95)
 plot(burn_fit)
 burn_suit <- predict(burn_fit, newdata = env[[c("bio_1", "bio_4", "bio_12")]],
@@ -114,22 +114,22 @@ sambar_prep <- prepare_bean(
 )
 
 # 1) Pick an objective grid size, then thin in environmental space:
-res     <- find_env_resolution(sambar_prep, env_vars = c("bio_1", "bio_12"),
+res     <- find_env_resolution(sambar_prep, env_vars = c("bio_1", "bio_4", "bio_12"),
                                method = "sheather-jones")
-thinned <- thin_env_nd(sambar_prep, env_vars = c("bio_1", "bio_12"),
+thinned <- thin_env_nd(sambar_prep, env_vars = c("bio_1", "bio_4", "bio_12"),
                        grid_resolution = res$suggested_resolution, seed = 123)
 
 print(thinned)   # how many points were kept?
 
 # 2) Fit a niche to the ORIGINAL and to the THINNED points, then predict both:
-fit_original  <- fit_ellipsoid(sambar_prep, env_vars = c("bio_1", "bio_12"),
+fit_original  <- fit_ellipsoid(sambar_prep, env_vars = c("bio_1", "bio_4", "bio_12"),
                                method = "covmat", level = 0.95)
-fit_thinned   <- fit_ellipsoid(thinned$thinned_data, env_vars = c("bio_1", "bio_12"),
+fit_thinned   <- fit_ellipsoid(thinned$thinned_data, env_vars = c("bio_1", "bio_4", "bio_12"),
                                method = "covmat", level = 0.95)
 
-suit_original <- predict(fit_original, newdata = env[[c("bio_1", "bio_12")]],
+suit_original <- predict(fit_original, newdata = env[[c("bio_1", "bio_4", "bio_12")]],
                          suitability_truncated = TRUE)
-suit_thinned  <- predict(fit_thinned, newdata = env[[c("bio_1", "bio_12")]],
+suit_thinned  <- predict(fit_thinned, newdata = env[[c("bio_1", "bio_4", "bio_12")]],
                          suitability_truncated = TRUE)
 
 # 3) Compare the two suitability maps: original (biased) vs thinned (corrected):
