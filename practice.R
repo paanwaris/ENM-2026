@@ -71,9 +71,10 @@ par(mfrow = c(1, 1))
 # Fire occurrence points (columns: year, x, y). This is a big file, so the
 # read may take a moment.
 burn <- read.csv("burn/point_fire.csv")
+thai_bd <- vect("boundary/tha_admbnda_adm0_rtsd_20220121.shp")
 
 # See the raw fire points on the map (subsample for a quick, readable plot):
-plot(env[["bio_1"]], main = "Fire (burn) occurrences over Thai temperature")
+plot(thai_bd[1])
 show <- if (nrow(burn) > 5000) burn[sample(nrow(burn), 5000), ] else burn
 points(show$x, show$y, pch = 20, cex = 0.3, col = "#c0392b")
 
